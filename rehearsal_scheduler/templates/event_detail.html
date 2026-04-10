@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+{% block title %}{{ event.name }} – Rehearsal Scheduler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <span class="badge badge-{{ event.service_type }} badge-lg">{{ event.service_label }}</span>
+    <h1>{{ event.name }}</h1>
+    <p class="subtitle">
+      &#128197; {{ event.event_date.strftime('%A, %B %-d, %Y') }}
+      {% if event.venue %} &middot; &#128205; {{ event.venue }}{% endif %}
+    </p>
+    {% if event.notes %}<p class="event-notes">{{ event.notes }}</p>{% endif %}
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('agenda', event_id=event.id) }}" class="btn btn-primary" target="_blank">Print Agenda</a>
+    <a href="{{ url_for('event_edit', event_id=event.id) }}" class="btn btn-outline">Edit Event</a>
+  </div>
+</div>
+
+<div class="detail-grid">
+
+  <!-- ── SET LIST ──────────────────────────────────────────────── -->
+  <section class="detail-section">
+    <div class="section-header">
+      <h2>&#9835; Set List</h2>
+      <button class="btn btn-sm" onclick="openModal('modal-add-song')">+ Add Song</button>
+    </div>
+
+    {% if event.set_list_items %}
+      <ol id="setlist-sortable" class="setlist" data-event-id="{{ event.id }}">
+        {% for item in event.set_list_items %}
+          <li class="setlist-item" data-item-id="{{ item.id }}">
+            <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+            <span class="song-pos">{{ loop.index }}</span>
+            <div class="song-info">
+              <strong>{{ item.song.title }}</strong>
+              {% if item.song.artist %}<span class="song-meta">{{ item.song.artist }}</span>{% endif %}
+              {% if item.song.key %}<span class="key-badge">{{ item.song.key }}</span>{% endif %}
+              {% if item.notes %}<span class="item-notes">{{ item.notes }}</span>{% endif %}
+            </div>
+            <form method="POST"
+                  action="{{ url_for('setlist_remove', event_id=event.id, item_id=item.id) }}"
+                  class="inline-form">
+              <button type="submit" class="btn-icon" title="Remove">&#10005;</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty-hint">No songs yet. Add songs from the library.</p>
+    {% endif %}
+
+    <!-- Add song modal -->
+    <div id="modal-add-song" class="modal-overlay">
+      <div class="modal">
+        <h3>Add Song to Set List</h3>
+        <form method="POST" action="{{ url_for('setlist_add', event_id=event.id) }}">
+          <div class="form-group">
+            <label>Song</label>
+            <select name="song_id" required>
+              {% for song in all_songs %}
+                {% if song.id not in assigned_song_ids %}
+                  <option value="{{ song.id }}">
+                    {{ song.title }}{% if song.artist %} – {{ song.artist }}{% endif %}{% if song.key %} ({{ song.key }}){% endif %}
+                  </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Notes (optional)</label>
+            <input type="text" name="notes" placeholder="e.g. extended intro, key change…" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-song')">Cancel</button>
+          </div>
+        </form>
+        <hr/>
+        <p class="modal-footer-hint">Song not in library? <a href="{{ url_for('song_new') }}">Add it here</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CAST ──────────────────────────────────────────────────── -->
+  <section class="detail-section">
+    <div class="section-header">
+      <h2>&#128101; Cast</h2>
+      <button class="btn btn-sm" onclick="openModal('modal-add-cast')">+ Add Cast</button>
+    </div>
+
+    {% if event.cast_assignments %}
+      <ul class="cast-list">
+        {% for ec in event.cast_assignments %}
+          <li class="cast-item {% if ec.sub %}has-sub{% endif %}">
+            <div class="cast-main">
+              <div class="cast-name-role">
+                <strong>{{ ec.cast_member.name }}</strong>
+                <span class="role-tag">{{ ec.effective_role }}</span>
+              </div>
+
+              {% if ec.sub %}
+                <div class="sub-info">
+                  <span class="sub-badge {% if ec.sub.confirmed %}confirmed{% endif %}">
+                    SUB{% if ec.sub.confirmed %} &#10003;{% endif %}
+                  </span>
+                  <span class="sub-name">{{ ec.sub.sub_name }}</span>
+                  {% if ec.sub.sub_contact %}<span class="sub-contact">{{ ec.sub.sub_contact }}</span>{% endif %}
+                  {% if ec.sub.notes %}<span class="sub-notes">{{ ec.sub.notes }}</span>{% endif %}
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="cast-actions">
+              <button class="btn btn-sm btn-outline"
+                      onclick="openModal('modal-sub-{{ ec.id }}')">
+                {{ 'Edit Sub' if ec.sub else 'Add Sub' }}
+              </button>
+              {% if ec.sub %}
+                <form method="POST"
+                      action="{{ url_for('sub_remove', event_id=event.id, ec_id=ec.id) }}"
+                      class="inline-form">
+                  <button type="submit" class="btn btn-sm btn-ghost">Remove Sub</button>
+                </form>
+              {% endif %}
+              <form method="POST"
+                    action="{{ url_for('cast_remove', event_id=event.id, ec_id=ec.id) }}"
+                    class="inline-form"
+                    onsubmit="return confirm('Remove {{ ec.cast_member.name }} from this event?')">
+                <button type="submit" class="btn-icon" title="Remove">&#10005;</button>
+              </form>
+            </div>
+
+            <!-- Sub modal for this cast member -->
+            <div id="modal-sub-{{ ec.id }}" class="modal-overlay">
+              <div class="modal">
+                <h3>{{ 'Edit Sub for' if ec.sub else 'Add Sub for' }} {{ ec.cast_member.name }}</h3>
+                <form method="POST" action="{{ url_for('sub_set', event_id=event.id, ec_id=ec.id) }}">
+                  <div class="form-group">
+                    <label>Sub Name *</label>
+                    <input type="text" name="sub_name" required
+                           value="{{ ec.sub.sub_name if ec.sub else '' }}"
+                           placeholder="Full name of substitute" />
+                  </div>
+                  <div class="form-group">
+                    <label>Contact (phone / email)</label>
+                    <input type="text" name="sub_contact"
+                           value="{{ ec.sub.sub_contact if ec.sub else '' }}" />
+                  </div>
+                  <div class="form-group checkbox-group">
+                    <label>
+                      <input type="checkbox" name="confirmed"
+                             {{ 'checked' if ec.sub and ec.sub.confirmed else '' }} />
+                      Confirmed
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label>Notes</label>
+                    <input type="text" name="notes"
+                           value="{{ ec.sub.notes if ec.sub else '' }}"
+                           placeholder="e.g. Only available after 7 PM" />
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-outline" onclick="closeModal('modal-sub-{{ ec.id }}')">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty-hint">No cast assigned. Add members from the roster.</p>
+    {% endif %}
+
+    <!-- Add cast modal -->
+    <div id="modal-add-cast" class="modal-overlay">
+      <div class="modal">
+        <h3>Add Cast Member</h3>
+        <form method="POST" action="{{ url_for('cast_add', event_id=event.id) }}">
+          <div class="form-group">
+            <label>Cast Member</label>
+            <select name="cast_member_id" required>
+              {% for member in all_cast %}
+                {% if member.id not in assigned_cast_ids %}
+                  <option value="{{ member.id }}">{{ member.name }} ({{ member.role }})</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Role Override (optional)</label>
+            <input type="text" name="role_override"
+                   placeholder="Leave blank to use default role" />
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-cast')">Cancel</button>
+          </div>
+        </form>
+        <hr/>
+        <p class="modal-footer-hint">Not on roster? <a href="{{ url_for('roster_new') }}">Add them here</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── REHEARSALS ─────────────────────────────────────────────── -->
+  <section class="detail-section full-width">
+    <div class="section-header">
+      <h2>&#128337; Rehearsals
+        <span class="section-hint">({{ event.rehearsal_day }}s recommended for {{ event.service_label }})</span>
+      </h2>
+      <button class="btn btn-sm" onclick="openModal('modal-add-rehearsal')">+ Add Rehearsal</button>
+    </div>
+
+    {% if event.rehearsals %}
+      <div class="rehearsal-list">
+        {% for r in event.rehearsals %}
+          <div class="rehearsal-card {% if r.day_of_week not in ['Monday', 'Wednesday'] %}rehearsal-offday{% endif %}">
+            <div class="rehearsal-date">
+              <span class="rday">{{ r.rehearsal_date.strftime('%A') }}</span>
+              <span class="rdate">{{ r.rehearsal_date.strftime('%B %-d, %Y') }}</span>
+            </div>
+            <div class="rehearsal-details">
+              {% if r.start_time or r.end_time %}
+                <span class="rtime">{{ r.start_time }}{% if r.end_time %} – {{ r.end_time }}{% endif %}</span>
+              {% endif %}
+              {% if r.location %}<span class="rlocation">&#128205; {{ r.location }}</span>{% endif %}
+              {% if r.focus_notes %}<div class="rfocus"><strong>Focus:</strong> {{ r.focus_notes }}</div>{% endif %}
+              {% if r.agenda %}<div class="ragenda">{{ r.agenda }}</div>{% endif %}
+            </div>
+            <div class="rehearsal-actions">
+              <button class="btn btn-sm btn-outline"
+                      onclick="openModal('modal-edit-rehearsal-{{ r.id }}')">Edit</button>
+              <form method="POST"
+                    action="{{ url_for('rehearsal_delete', event_id=event.id, r_id=r.id) }}"
+                    class="inline-form"
+                    onsubmit="return confirm('Delete this rehearsal?')">
+                <button type="submit" class="btn btn-sm btn-danger-ghost">Delete</button>
+              </form>
+            </div>
+
+            <!-- Edit rehearsal modal -->
+            <div id="modal-edit-rehearsal-{{ r.id }}" class="modal-overlay">
+              <div class="modal">
+                <h3>Edit Rehearsal</h3>
+                <form method="POST" action="{{ url_for('rehearsal_edit', event_id=event.id, r_id=r.id) }}">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Date *</label>
+                      <input type="date" name="rehearsal_date" required
+                             value="{{ r.rehearsal_date.isoformat() }}" />
+                    </div>
+                    <div class="form-group">
+                      <label>Start Time</label>
+                      <input type="text" name="start_time" value="{{ r.start_time or '' }}"
+                             placeholder="6:30 PM" />
+                    </div>
+                    <div class="form-group">
+                      <label>End Time</label>
+                      <input type="text" name="end_time" value="{{ r.end_time or '' }}"
+                             placeholder="9:00 PM" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" name="location" value="{{ r.location or '' }}" />
+                  </div>
+                  <div class="form-group">
+                    <label>Focus / Goals</label>
+                    <input type="text" name="focus_notes" value="{{ r.focus_notes or '' }}"
+                           placeholder="e.g. Work on opening song, nail the bridge…" />
+                  </div>
+                  <div class="form-group">
+                    <label>Agenda / Notes</label>
+                    <textarea name="agenda" rows="4"
+                              placeholder="Detailed rehearsal agenda…">{{ r.agenda or '' }}</textarea>
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-outline"
+                            onclick="closeModal('modal-edit-rehearsal-{{ r.id }}')">Cancel</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-hint">No rehearsals scheduled.</p>
+    {% endif %}
+
+    <!-- Add rehearsal modal -->
+    <div id="modal-add-rehearsal" class="modal-overlay">
+      <div class="modal">
+        <h3>Add Rehearsal</h3>
+        <form method="POST" action="{{ url_for('rehearsal_add', event_id=event.id) }}">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date *</label>
+              <input type="date" name="rehearsal_date" required />
+            </div>
+            <div class="form-group">
+              <label>Start Time</label>
+              <input type="text" name="start_time" placeholder="6:30 PM" value="6:30 PM" />
+            </div>
+            <div class="form-group">
+              <label>End Time</label>
+              <input type="text" name="end_time" placeholder="9:00 PM" value="9:00 PM" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" name="location"
+                   value="{{ event.venue or '' }}" />
+          </div>
+          <div class="form-group">
+            <label>Focus / Goals</label>
+            <input type="text" name="focus_notes"
+                   placeholder="e.g. Work on opening song, nail the bridge…" />
+          </div>
+          <div class="form-group">
+            <label>Agenda / Notes</label>
+            <textarea name="agenda" rows="4"
+                      placeholder="Detailed rehearsal agenda…"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-outline" onclick="closeModal('modal-add-rehearsal')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /detail-grid -->
+{% endblock %}

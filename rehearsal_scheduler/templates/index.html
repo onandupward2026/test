@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – Rehearsal Scheduler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Upcoming Events</h1>
+  <a href="{{ url_for('event_new') }}" class="btn btn-primary">+ New Event</a>
+</div>
+
+{% if upcoming %}
+  <div class="event-grid">
+    {% for event in upcoming %}
+      <div class="event-card service-{{ event.service_type }}">
+        <div class="event-card-badge">{{ event.service_label }}</div>
+        <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.name }}</a></h2>
+        <div class="event-meta">
+          <span class="meta-item">&#128197; {{ event.event_date.strftime('%A, %B %-d, %Y') }}</span>
+          {% if event.venue %}
+            <span class="meta-item">&#128205; {{ event.venue }}</span>
+          {% endif %}
+        </div>
+        <div class="event-stats">
+          <span>&#9835; {{ event.set_list_items | length }} songs</span>
+          <span>&#128101; {{ event.cast_assignments | length }} cast</span>
+          <span>&#128337; {{ event.rehearsals | length }} rehearsal(s)</span>
+        </div>
+        <div class="event-card-actions">
+          <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn btn-sm">View</a>
+          <a href="{{ url_for('agenda', event_id=event.id) }}" class="btn btn-sm btn-outline" target="_blank">Agenda</a>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <p>No upcoming events. <a href="{{ url_for('event_new') }}">Create your first event</a>.</p>
+  </div>
+{% endif %}
+
+{% if past %}
+  <div class="section-divider">
+    <h2>Recent Past Events</h2>
+  </div>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Event</th>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Songs</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for event in past %}
+        <tr>
+          <td><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.name }}</a></td>
+          <td>{{ event.event_date.strftime('%b %-d, %Y') }}</td>
+          <td><span class="badge badge-{{ event.service_type }}">{{ event.service_label }}</span></td>
+          <td>{{ event.set_list_items | length }}</td>
+          <td><a href="{{ url_for('agenda', event_id=event.id) }}" target="_blank">Agenda</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

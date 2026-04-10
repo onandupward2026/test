@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Event' if event else 'New Event' }} – Rehearsal Scheduler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>{{ 'Edit Event' if event else 'New Event' }}</h1>
+  <a href="{{ url_for('index') }}" class="btn btn-outline">Back</a>
+</div>
+
+<form method="POST" class="form-card">
+  <div class="form-row">
+    <div class="form-group flex-2">
+      <label for="name">Event Name *</label>
+      <input type="text" id="name" name="name" required
+             value="{{ event.name if event else '' }}"
+             placeholder="e.g. Sunday Morning Big Crush – April 2026" />
+    </div>
+    <div class="form-group">
+      <label for="service_type">Service Type *</label>
+      <select id="service_type" name="service_type" required>
+        <option value="big_crush" {{ 'selected' if event and event.service_type == 'big_crush' else '' }}>
+          Monday Big Crush
+        </option>
+        <option value="hip_service" {{ 'selected' if event and event.service_type == 'hip_service' else '' }}>
+          Wednesday Hip Service
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="event_date">Event Date *</label>
+      <input type="date" id="event_date" name="event_date" required
+             value="{{ event.event_date.isoformat() if event else '' }}" />
+    </div>
+    <div class="form-group flex-2">
+      <label for="venue">Venue / Location</label>
+      <input type="text" id="venue" name="venue"
+             value="{{ event.venue if event else '' }}"
+             placeholder="e.g. Main Sanctuary" />
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="notes">Notes</label>
+    <textarea id="notes" name="notes" rows="3"
+              placeholder="Any additional notes about this event...">{{ event.notes if event else '' }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ 'Save Changes' if event else 'Create Event' }}</button>
+    {% if event %}
+      <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn btn-outline">Cancel</a>
+    {% else %}
+      <a href="{{ url_for('index') }}" class="btn btn-outline">Cancel</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if event %}
+  <div class="danger-zone">
+    <h3>Danger Zone</h3>
+    <form method="POST" action="{{ url_for('event_delete', event_id=event.id) }}"
+          onsubmit="return confirm('Delete this event and all its data?')">
+      <button type="submit" class="btn btn-danger">Delete Event</button>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

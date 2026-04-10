@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Rehearsal Scheduler{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="{{ url_for('index') }}">&#9835; Rehearsal Scheduler</a>
+    <div class="nav-links">
+      <a href="{{ url_for('index') }}">Events</a>
+      <a href="{{ url_for('songs') }}">Song Library</a>
+      <a href="{{ url_for('roster') }}">Cast Roster</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <script>
+    // Auto-dismiss flash messages
+    setTimeout(() => {
+      document.querySelectorAll('.flash').forEach(el => el.style.opacity = '0');
+    }, 4000);
+
+    // Drag-and-drop set list reorder
+    function initDragDrop() {
+      const list = document.getElementById('setlist-sortable');
+      if (!list) return;
+      let dragging = null;
+      list.querySelectorAll('.drag-handle').forEach(handle => {
+        handle.parentElement.setAttribute('draggable', true);
+        handle.parentElement.addEventListener('dragstart', e => {
+          dragging = e.currentTarget;
+          e.currentTarget.classList.add('dragging');
+        });
+        handle.parentElement.addEventListener('dragend', e => {
+          e.currentTarget.classList.remove('dragging');
+          dragging = null;
+          saveOrder(list);
+        });
+        handle.parentElement.addEventListener('dragover', e => {
+          e.preventDefault();
+          const afterEl = getDragAfterElement(list, e.clientY);
+          if (afterEl == null) {
+            list.appendChild(dragging);
+          } else {
+            list.insertBefore(dragging, afterEl);
+          }
+        });
+      });
+    }
+
+    function getDragAfterElement(container, y) {
+      const draggableEls = [...container.querySelectorAll('[draggable]:not(.dragging)')];
+      return draggableEls.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset, element: child };
+        }
+        return closest;
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function saveOrder(list) {
+      const ids = [...list.querySelectorAll('[data-item-id]')].map(el => el.dataset.itemId);
+      const eventId = list.dataset.eventId;
+      fetch(`/events/${eventId}/setlist/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `order=${ids.join(',')}`
+      });
+    }
+
+    // Modal helpers
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    document.addEventListener('click', e => {
+      if (e.target.classList.contains('modal-overlay')) {
+        e.target.classList.remove('open');
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', initDragDrop);
+  </script>
+</body>
+</html>

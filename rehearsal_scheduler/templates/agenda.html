@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agenda – {{ event.name }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; font-size: 13pt; color: #111; background: #fff; padding: 1.5cm 2cm; }
+    h1 { font-size: 22pt; margin-bottom: 4px; }
+    .subtitle { font-size: 11pt; color: #555; margin-bottom: 1.2em; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10pt;
+             font-family: Arial, sans-serif; font-weight: bold; margin-bottom: 6px; }
+    .badge-big_crush { background: #1a237e; color: #fff; }
+    .badge-hip_service { background: #4a148c; color: #fff; }
+    section { margin: 1.4em 0; }
+    h2 { font-size: 14pt; border-bottom: 2px solid #111; padding-bottom: 4px; margin-bottom: 10px; }
+    h3 { font-size: 12pt; margin: 1em 0 4px; }
+
+    /* Set list */
+    .setlist { list-style: none; }
+    .setlist li { display: flex; align-items: baseline; gap: 8px; padding: 5px 0;
+                   border-bottom: 1px dotted #ccc; }
+    .song-num { font-weight: bold; min-width: 1.6em; color: #555; }
+    .song-title { font-weight: bold; }
+    .song-artist { color: #555; font-size: 11pt; }
+    .song-key { font-size: 10pt; background: #f0f0f0; padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
+    .song-note { font-style: italic; font-size: 10pt; color: #777; margin-left: 8px; }
+
+    /* Cast */
+    .cast-table { width: 100%; border-collapse: collapse; }
+    .cast-table th { text-align: left; font-family: Arial, sans-serif; font-size: 10pt;
+                      border-bottom: 1px solid #ccc; padding: 4px 8px; }
+    .cast-table td { padding: 5px 8px; border-bottom: 1px dotted #ddd; vertical-align: top; }
+    .sub-cell { color: #b71c1c; font-weight: bold; }
+    .confirmed-chip { font-size: 9pt; color: #1b5e20; font-weight: bold; }
+    .unconfirmed-chip { font-size: 9pt; color: #e65100; font-weight: bold; }
+
+    /* Rehearsals */
+    .rehearsal-block { background: #f9f9f9; border-left: 4px solid #333;
+                        padding: 10px 14px; margin-bottom: 12px; }
+    .reh-date { font-weight: bold; font-size: 13pt; }
+    .reh-time { color: #555; font-size: 11pt; margin-left: 8px; }
+    .reh-location { font-style: italic; color: #555; font-size: 11pt; }
+    .reh-focus { margin-top: 6px; }
+    .reh-agenda { margin-top: 8px; white-space: pre-wrap; font-size: 11pt; line-height: 1.5; }
+
+    /* Notes */
+    .event-notes-block { background: #fffde7; border-left: 4px solid #f9a825;
+                          padding: 8px 14px; font-style: italic; margin-bottom: 1em; }
+
+    /* Print helpers */
+    .print-btn { display: block; text-align: center; margin: 0 auto 1.5em;
+                  padding: 8px 24px; background: #1a237e; color: #fff;
+                  border: none; border-radius: 4px; cursor: pointer; font-size: 13pt; }
+    @media print {
+      .print-btn { display: none; }
+      body { padding: 0; }
+    }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+
+<span class="badge badge-{{ event.service_type }}">{{ event.service_label }}</span>
+<h1>{{ event.name }}</h1>
+<p class="subtitle">
+  {{ event.event_date.strftime('%A, %B %-d, %Y') }}
+  {% if event.venue %} &middot; {{ event.venue }}{% endif %}
+</p>
+
+{% if event.notes %}
+  <div class="event-notes-block">{{ event.notes }}</div>
+{% endif %}
+
+<!-- ── REHEARSALS ──────────────────────────────────────────── -->
+{% if event.rehearsals %}
+<section>
+  <h2>Rehearsal Schedule</h2>
+  {% for r in event.rehearsals %}
+    <div class="rehearsal-block">
+      <div>
+        <span class="reh-date">{{ r.rehearsal_date.strftime('%A, %B %-d, %Y') }}</span>
+        {% if r.start_time or r.end_time %}
+          <span class="reh-time">
+            {{ r.start_time or '' }}{% if r.end_time %} – {{ r.end_time }}{% endif %}
+          </span>
+        {% endif %}
+      </div>
+      {% if r.location %}<div class="reh-location">{{ r.location }}</div>{% endif %}
+      {% if r.focus_notes %}<div class="reh-focus"><strong>Focus:</strong> {{ r.focus_notes }}</div>{% endif %}
+      {% if r.agenda %}<div class="reh-agenda">{{ r.agenda }}</div>{% endif %}
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- ── SET LIST ──────────────────────────────────────────────── -->
+<section>
+  <h2>Set List</h2>
+  {% if event.set_list_items %}
+    <ol class="setlist">
+      {% for item in event.set_list_items %}
+        <li>
+          <span class="song-num">{{ loop.index }}.</span>
+          <span class="song-title">{{ item.song.title }}</span>
+          {% if item.song.artist %}<span class="song-artist">{{ item.song.artist }}</span>{% endif %}
+          {% if item.song.key %}<span class="song-key">{{ item.song.key }}</span>{% endif %}
+          {% if item.notes %}<span class="song-note">— {{ item.notes }}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p><em>No set list yet.</em></p>
+  {% endif %}
+</section>
+
+<!-- ── CAST ──────────────────────────────────────────────────── -->
+<section>
+  <h2>Cast</h2>
+  {% if event.cast_assignments %}
+    <table class="cast-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Sub</th>
+          <th>Contact</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ec in event.cast_assignments %}
+          <tr>
+            <td>{{ ec.cast_member.name }}</td>
+            <td>{{ ec.effective_role }}</td>
+            <td>
+              {% if ec.sub %}
+                <span class="sub-cell">{{ ec.sub.sub_name }}</span>
+                {% if ec.sub.confirmed %}
+                  <span class="confirmed-chip"> [CONFIRMED]</span>
+                {% else %}
+                  <span class="unconfirmed-chip"> [PENDING]</span>
+                {% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if ec.sub and ec.sub.sub_contact %}{{ ec.sub.sub_contact }}
+              {% elif ec.cast_member.phone %}{{ ec.cast_member.phone }}
+              {% elif ec.cast_member.email %}{{ ec.cast_member.email }}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if ec.sub and ec.sub.notes %}{{ ec.sub.notes }}
+              {% elif ec.cast_member.notes %}{{ ec.cast_member.notes }}
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p><em>No cast assigned yet.</em></p>
+  {% endif %}
+</section>
+
+</body>
+</html>

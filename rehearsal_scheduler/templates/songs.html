@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Song Library – Rehearsal Scheduler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>&#9835; Song Library</h1>
+  <a href="{{ url_for('song_new') }}" class="btn btn-primary">+ Add Song</a>
+</div>
+
+{% if songs %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Artist</th>
+        <th>Key</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for song in songs %}
+        <tr>
+          <td><strong>{{ song.title }}</strong></td>
+          <td>{{ song.artist or '—' }}</td>
+          <td>{% if song.key %}<span class="key-badge">{{ song.key }}</span>{% else %}—{% endif %}</td>
+          <td class="notes-cell">{{ song.notes or '—' }}</td>
+          <td class="action-cell">
+            <a href="{{ url_for('song_edit', song_id=song.id) }}" class="btn btn-sm btn-outline">Edit</a>
+            <form method="POST" action="{{ url_for('song_delete', song_id=song.id) }}"
+                  class="inline-form"
+                  onsubmit="return confirm('Delete {{ song.title }}?')">
+              <button type="submit" class="btn btn-sm btn-danger-ghost">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty-state">
+    <p>No songs in library yet. <a href="{{ url_for('song_new') }}">Add your first song</a>.</p>
+  </div>
+{% endif %}
+{% endblock %}
